@@ -11,3 +11,17 @@ server/manifest.go
 
 # VS Code
 .vscode
+# Игнорировать все файлы
+*
+
+# Но НЕ игнорировать .gitignore
+!.gitignore
+
+# НЕ игнорировать нужные файлы (например, исходники и Makefile)
+!*/         # Позволяет git "видеть" папки, чтобы можно было добавить файлы из них
+!Makefile
+!src/*
+!server/*
+!path/to/your/important/file_or_folder
+
+# Добавь сюда исключения для твоих нужных файлов
