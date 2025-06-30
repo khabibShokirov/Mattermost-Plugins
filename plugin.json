@@ -1,25 +1,19 @@
 {
   "id": "com.mattermost.alfabuddy",
   "name": "Alfabuddy Assistant",
-  "description": "Assistant bot for Mattermost from Alfabuddy team.",
-  "homepage_url": "https://github.com/mattermost/mattermost-plugin-starter-template",
-  "support_url": "https://github.com/mattermost/mattermost-plugin-starter-template/issues",
-  "icon_path": "assets/starter-template-icon.svg",
-  "min_server_version": "6.2.1",
+  "version": "0.1.0",
+  "min_server_version": "5.34.0",
   "server": {
     "executables": {
       "linux-amd64": "server/dist/plugin-linux-amd64",
-      "linux-arm64": "server/dist/plugin-linux-arm64",
-      "darwin-amd64": "server/dist/plugin-darwin-amd64",
-      "darwin-arm64": "server/dist/plugin-darwin-arm64",
-      "windows-amd64": "server/dist/plugin-windows-amd64.exe"
+      "darwin-amd64": "server/dist/plugin-darwin-amd64"
     }
   },
   "webapp": {
     "bundle_path": "webapp/dist/main.js"
   },
   "settings_schema": {
-    "header": "",
+    "header": "Настройки AlfaBuddy",
     "footer": "",
     "settings": []
   }

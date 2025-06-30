@@ -6,3 +6,14 @@ export interface PluginRegistry {
 
     // Add more if needed from https://developers.mattermost.com/extend/plugins/webapp/reference
 }
+
+// Добавляем объявление для файлов PNG, чтобы TypeScript их распознавал
+declare module '*.png' {
+    const value: string;
+    export default value;
+}
+
+declare module '*.svg' {
+    const content: string;
+    export default content;
+}

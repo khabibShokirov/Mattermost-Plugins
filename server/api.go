@@ -5,24 +5,37 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/mattermost/mattermost/server/public/pluginapi" // ДОБАВЬТЕ ЭТОТ ИМПОРТ
 )
 
-// ServeHTTP demonstrates a plugin that handles HTTP requests by greeting the world.
-// The root URL is currently <siteUrl>/plugins/com.mattermost.plugin-starter-template/api/v1/. Replace com.mattermost.plugin-starter-template with the plugin ID.
+// apiHandler содержит клиент API для использования в HTTP-методах.
+type apiHandler struct {
+	clientAPI *pluginapi.Client // ЭТО НОВЫЙ КЛИЕНТ API
+}
+
+// ServeHTTP обрабатывает HTTP-запросы к плагину.
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
+	// Инициализируем обработчик HTTP-запросов, передавая ему клиент API плагина.
+	h := &apiHandler{
+		clientAPI: p.client, // Используем p.client, инициализированный в plugin.go
+	}
+
 	router := mux.NewRouter()
 
-	// Middleware to require that the user is logged in
-	router.Use(p.MattermostAuthorizationRequired)
+	// Middleware для требования авторизации пользователя.
+	// Теперь используем middleware из apiHandler.
+	router.Use(h.MattermostAuthorizationRequired)
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 
-	apiRouter.HandleFunc("/hello", p.HelloWorld).Methods(http.MethodGet)
+	// Регистрируем хендлер для "/hello", используя метод apiHandler.
+	apiRouter.HandleFunc("/hello", h.HelloWorld).Methods(http.MethodGet)
 
 	router.ServeHTTP(w, r)
 }
 
-func (p *Plugin) MattermostAuthorizationRequired(next http.Handler) http.Handler {
+// MattermostAuthorizationRequired является middleware для проверки авторизации Mattermost.
+func (a *apiHandler) MattermostAuthorizationRequired(next http.Handler) http.Handler { // Изменили p на a
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID := r.Header.Get("Mattermost-User-ID")
 		if userID == "" {
@@ -34,9 +47,10 @@ func (p *Plugin) MattermostAuthorizationRequired(next http.Handler) http.Handler
 	})
 }
 
-func (p *Plugin) HelloWorld(w http.ResponseWriter, r *http.Request) {
+// HelloWorld демонстрирует простую конечную точку HTTP.
+func (a *apiHandler) HelloWorld(w http.ResponseWriter, r *http.Request) { // Изменили p на a
 	if _, err := w.Write([]byte("Hello, world!")); err != nil {
-		p.API.LogError("Failed to write response", "error", err)
+		a.clientAPI.Log.Error("Failed to write response", "error", err) // ИСПРАВЛЕНИЕ: Убрали лишнее ".API"
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

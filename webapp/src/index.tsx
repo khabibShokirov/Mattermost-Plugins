@@ -3,52 +3,168 @@
 
 import React from 'react';
 
-import {Client4} from 'mattermost-redux/client';
+import {
+    selectChannel,
+    createDirectChannel,
+} from 'mattermost-redux/actions/channels';
+import {getUserByUsername} from 'mattermost-redux/actions/users';
 
 import manifest from '@/manifest';
 
-// Задай реальный bot id!
-const BOT_USER_ID = 'alfabuddy_bot_userid';
+const BOT_ID = 'test2';
 
-const MyIcon = () => (
+// const TEAM_ID = 'alfa'; // ID вашей команды, если нужно
+const GREETING_KEY = 'mattermost_plugin_send_greeting'; // Ключ для localStorage
+
+// SVG-иконка, которая будет отображаться в заголовке канала
+const ChatIcon = () => (
     <svg
-        width={20}
-        height={20}
-        fill='currentColor'
+        xmlns='http://www.w3.org/2000/svg'
+        id='Layer_1'
+        data-name='Layer 1'
+        viewBox='0 0 96 96' // Оригинальный viewBox
+        width={20} // Желаемая ширина отображения
+        height={20} // Желаемая высота отображения
+        fill='currentColor' // Это позволит иконке наследовать цвет текста, если не задан fill на path-ах
     >
-        <circle
-            cx='10'
-            cy='10'
-            r='10'
-            fill='#888'
+        {/* Определение фильтра для свечения */}
+        <defs>
+            <filter
+                id='redGlow'
+                x='-50%'
+                y='-50%'
+                width='200%'
+                height='200%'
+            >
+                {/* gaussian blur (размытие) */}
+                <feGaussianBlur
+                    in='SourceGraphic'
+                    stdDeviation='8'
+                    result='blur'
+                />
+                {/* Создаем эффект свечения, накладывая размытый свет */}
+                <feComponentTransfer
+                    in='blur'
+                    result='coloredBlur'
+                >
+                    <feFuncR
+                        type='linear'
+                        slope='0'
+                        intercept='1'
+                    />{' '}
+                    {/* Красный канал */}
+                    <feFuncG
+                        type='linear'
+                        slope='0'
+                        intercept='0'
+                    />{' '}
+                    {/* Зеленый канал */}
+                    <feFuncB
+                        type='linear'
+                        slope='0'
+                        intercept='0'
+                    /> {/* Синий канал */}
+                    <feFuncA
+                        type='linear'
+                        slope='1'
+                        intercept='0'
+                    />{' '}
+                    {/* Альфа-канал (прозрачность) */}
+                </feComponentTransfer>
+                {/* Складываем оригинал и свечение */}
+                <feMerge>
+                    <feMergeNode in='coloredBlur'/>
+                    <feMergeNode in='SourceGraphic'/>
+                </feMerge>
+            </filter>
+        </defs>
+
+        {/* Прямоугольник для создания красного свечения позади робота */}
+        {/* Применяем фильтр к этому прямоугольнику */}
+        <rect
+            x='0'
+            y='0'
+            width='96'
+            height='96'
+            fill='red' // Задаем красный цвет для свечения
+            filter='url(#redGlow)' // Применяем определенный выше фильтр
+            opacity='0.6' // Регулируем прозрачность свечения
         />
+
+        {/* Все path-элементы робота остаются без изменений */}
+        <path d='M49,61.54c-21.81,0-33.83-9.83-33.83-27.69C15.17,17.55,29.08,6.16,49,6.16S82.83,17.55,82.83,33.85C82.83,51.45,70.5,61.54,49,61.54ZM49,8.16c-19,0-31.83,10.33-31.83,25.69,0,16.57,11.31,25.69,31.83,25.69,20.23,0,31.83-9.37,31.83-25.69C80.83,18.49,68,8.16,49,8.16Z'/>
+        <path d='M59.17,9.22a1,1,0,0,1-1-.81c-.33-1.8-.81-2.37-1-2.53-3-2.48-13.38-2.48-16.36,0-.19.16-.67.73-1,2.53a1,1,0,0,1-1.17.8A1,1,0,0,1,37.85,8a6.11,6.11,0,0,1,1.69-3.69c3.8-3.17,15.12-3.17,18.92,0A6.06,6.06,0,0,1,60.15,8a1,1,0,0,1-.8,1.17Z'/>
+        <path d='M63,52a41.51,41.51,0,0,1-6.81-.76,42.89,42.89,0,0,0-7.23-.8,44,44,0,0,0-7.23.79c-4.74.8-9.21,1.56-14.45-1a12.43,12.43,0,0,1-6.66-8.13,21.7,21.7,0,0,1-.56-5C20.1,25,31.71,16.74,49,16.74S77.9,25,77.9,37.16a20.51,20.51,0,0,1-.71,5.43,12.29,12.29,0,0,1-6.65,7.78A17,17,0,0,1,63,52ZM49,48.47a44.76,44.76,0,0,1,7.56.82c4.38.74,8.52,1.44,13.13-.73a10.27,10.27,0,0,0,5.56-6.46,18.34,18.34,0,0,0,.65-4.94c0-11-10.81-18.42-26.9-18.42s-26.9,7.4-26.9,18.42a19.28,19.28,0,0,0,.51,4.53,10.36,10.36,0,0,0,5.58,6.8c4.66,2.25,8.83,1.55,13.25.8A44.76,44.76,0,0,1,49,48.47Z'/>
+        <path d='M62.75,38.92H60c-1.8,0-3.36.06-4.39-.95a3.37,3.37,0,0,1-.89-2.53,6.21,6.21,0,1,1,12.42,0A3.37,3.37,0,0,1,66.28,38C65.42,38.8,64.19,38.92,62.75,38.92ZM61,36.9h1c1.3,0,2.53.05,3-.38a1.58,1.58,0,0,0,.29-1.1,4.21,4.21,0,1,0-8.42,0,1.58,1.58,0,0,0,.29,1.1c.43.42,1.66.41,3,.38Z'/>
+        <path d='M35.25,38.92c-1.44,0-2.67-.12-3.53-1a3.37,3.37,0,0,1-.89-2.53,6.21,6.21,0,1,1,12.42,0A3.37,3.37,0,0,1,42.36,38c-1,1-2.59,1-4.39.95H35.25ZM37,31.21a4.22,4.22,0,0,0-4.21,4.22,1.58,1.58,0,0,0,.29,1.1c.43.42,1.66.41,3,.38H38c1.3,0,2.53,0,3-.38a1.58,1.58,0,0,0,.29-1.1A4.22,4.22,0,0,0,37,31.21Z'/>
+        <path d='M80.21,49.28a11.42,11.42,0,0,1-2.32-.22,1,1,0,0,1,.4-2c2.3.47,5.18,0,5.92-.78,1.42-1.42,2.33-5,2.33-9.19a26.76,26.76,0,0,0-.25-3.69,1.29,1.29,0,0,1,0-.19v-.07a10,10,0,0,0-2-5.23,6.16,6.16,0,0,0-3.63-1,1,1,0,0,1-.71-.33,1,1,0,0,1-.26-.73L80.67,8.21a2.83,2.83,0,0,1,5.64-.05l1.92,24.73a28.16,28.16,0,0,1,.31,4.24c0,4.81-1.09,8.77-2.91,10.6C84.58,48.78,82.34,49.28,80.21,49.28Zm1.46-24.21a7,7,0,0,1,4,1.46l.11.12L84.32,8.31a.83.83,0,0,0-.48-.68.81.81,0,0,0-.77,0,.79.79,0,0,0-.4.66Z'/>
+        <path d='M17.79,49.28c-2.13,0-4.37-.5-5.42-1.55-1.82-1.83-2.91-5.79-2.91-10.6a28.16,28.16,0,0,1,.31-4.24L11.69,8.16a2.83,2.83,0,0,1,5.64.05l1.06,17.72a1,1,0,0,1-.26.73,1,1,0,0,1-.71.33,6.16,6.16,0,0,0-3.63,1,10,10,0,0,0-2,5.23v.07a1.29,1.29,0,0,1,0,.19,26.76,26.76,0,0,0-.25,3.69c0,4.17.91,7.77,2.33,9.19.74.74,3.62,1.25,5.92.78a1,1,0,0,1,1.18.79,1,1,0,0,1-.78,1.17A11.42,11.42,0,0,1,17.79,49.28ZM14.51,7.55a.74.74,0,0,0-.35.08.83.83,0,0,0-.48.68L12.26,26.65l.11-.12a7,7,0,0,1,4-1.46l-1-16.74a.83.83,0,0,0-.82-.78Z'/>
+        <path d='M49,94.07c-8.6,0-17.2-1.92-21-5.75-5.06-5.06-2.87-22.64-1.11-32.67A1,1,0,0,1,28,54.84,1,1,0,0,1,28.83,56C26,72.17,26.2,83.72,29.38,86.9c6.79,6.79,32.45,6.79,39.24,0,3.18-3.18,3.39-14.77.54-31a1,1,0,1,1,2-.34c1.76,10.05,4,27.68-1.1,32.75C66.2,92.15,57.6,94.07,49,94.07Z'/>
+        <path d='M49,83.87a42.66,42.66,0,0,1-8.44-.78A7,7,0,0,1,35,76.34a80.73,80.73,0,0,1,.64-10.71,1,1,0,0,1,1-.88H61.39a1,1,0,0,1,1,.88A82.32,82.32,0,0,1,63,76.33a7,7,0,0,1-5.58,6.76A43.45,43.45,0,0,1,49,83.87ZM37.51,66.75A72.84,72.84,0,0,0,37,76.3a5,5,0,0,0,4,4.83,41.06,41.06,0,0,0,8,.74,41,41,0,0,0,8-.74,5,5,0,0,0,4-4.84,74.58,74.58,0,0,0-.54-9.54Z'/>
+        <path d='M85.49,79.62c-.7,0-1.75-.36-2.73-2a25.41,25.41,0,0,0-11.51-10.7A1,1,0,0,1,72,65c.31.12,7.47,2.9,12.53,11.57.51.87.93,1.05,1,1.05s.35-.65.11-1.8C82.49,60.67,74.11,53.12,74,53.05a1,1,0,0,1-.09-1.42,1,1,0,0,1,1.41-.09c.37.32,9,8,12.22,23.88.41,2-.13,3.6-1.38,4.07A2,2,0,0,1,85.49,79.62Z'/>
+        <path d='M12.51,79.62a2,2,0,0,1-.69-.13C10.57,79,10,77.42,10.44,75.42c3.25-15.85,11.85-23.56,12.22-23.88a1,1,0,0,1,1.41.09A1,1,0,0,1,24,53.05c-.09.07-8.47,7.62-11.58,22.77-.24,1.15,0,1.73.14,1.81s.47-.19,1-1.06C18.58,67.9,25.74,65.12,26.05,65a1,1,0,0,1,.7,1.87A25.79,25.79,0,0,0,15.24,77.58C14.26,79.26,13.21,79.62,12.51,79.62Z'/>
     </svg>
 );
 
+// Основной класс плагина
 export default class Plugin {
     async initialize(registry: any, store: any) {
-        if (typeof registry.registerChannelHeaderButtonAction === 'function') {
-            registry.registerChannelHeaderButtonAction(
-                <MyIcon/>,
-                async () => {
-                    const currentUserId = store.getState().entities.users.currentUserId;
-                    const channel = await Client4.createDirectChannel([
-                        currentUserId,
-                        BOT_USER_ID,
-                    ]);
-                    if (channel && channel.name) {
-                        window.location.href = `/channels/${channel.name}`;
-                    }
-                },
-                'Открыть чат с Alfabuddy',
-            );
-        }
+        this.sendGreetingOnLoad();
+        registry.registerChannelHeaderButtonAction(
+            <ChatIcon/>,
+            async () => {
+                const state = store.getState();
+                const currentUserId = state.entities.users.currentUserId;
+                let botUser = state.entities.users.profiles[BOT_ID];
+                if (!botUser) {
+                    const resp = await store.dispatch(getUserByUsername(BOT_ID));
+                    botUser = resp.data;
+                }
+                if (!botUser) {
+                    return;
+                }
+                const botUserId = botUser.id;
+
+                const chRes = await store.dispatch(
+                    createDirectChannel(currentUserId, botUserId),
+                );
+                const dmChannel = chRes.data;
+                if (!dmChannel) {
+                    return;
+                }
+
+                store.dispatch(selectChannel(dmChannel.id));
+                localStorage.setItem(GREETING_KEY, 'true');
+            },
+            'Открыть чат',
+        );
     }
+
+    sendGreetingOnLoad = () => {
+        if (localStorage.getItem(GREETING_KEY) === 'true') {
+            localStorage.removeItem(GREETING_KEY);
+            setTimeout(() => {
+                const messageInput = document.getElementById('post_textbox');
+                const sendButton = document.getElementById('post_textbox_right_button');
+                if (messageInput && sendButton) {
+                    (messageInput as HTMLTextAreaElement).value = 'привет';
+                    const inputEvent = new Event('input', {bubbles: true});
+                    messageInput.dispatchEvent(inputEvent);
+                    sendButton.click();
+                }
+            }, 1000);
+        }
+    };
 }
 
+// Объявление глобального интерфейса Window для TypeScript,
+// чтобы он знал о функции registerPlugin
 declare global {
     interface Window {
         registerPlugin(pluginId: string, plugin: Plugin): void;
     }
 }
+
+// Регистрация плагина в Mattermost
+// manifest.id берется из файла манифеста (plugin.json/plugin.yaml)
 window.registerPlugin(manifest.id, new Plugin());
